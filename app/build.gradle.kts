@@ -58,13 +58,23 @@ dependencies {
     val room_version = "2.5.1"
     implementation("androidx.room:room-ktx:$room_version")
     kapt ("androidx.room:room-compiler:$room_version")
+
+    //nuevas  anotaciones para room
+    annotationProcessor("androidx.room:room-compiler:$room_version")
+
+    //corrutinas
+    implementation("org.jetbrains.kotlinx:kotlinx-corutines-core:1.5.2")
+    implementation("org.jetbrains.kotlinx:kotlinx-corutines-android:1.5.2")
+    implementation("org.jetbrains.kotlinx:kotlinx-corutines-play-services:1.5.2")
+
+
+
     //  Dagger Hilt
     implementation ("com.google.dagger:hilt-android:2.46.1")
     kapt ("com.google.dagger:hilt-compiler:2.46.1")
     //Navigation
     val nav_version = "2.5.3"
     implementation("androidx.navigation:navigation-compose:$nav_version")
-
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.4")
     implementation("androidx.activity:activity-compose:1.9.1")
