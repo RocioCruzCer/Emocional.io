@@ -18,10 +18,12 @@ import mx.edu.dsi_code.notasmvvm.model.Note
 import mx.edu.dsi_code.notasmvvm.screen.NoteScreen
 import mx.edu.dsi_code.notasmvvm.ui.theme.NotasMVVMTheme
 import com.google.accompanist.systemuicontroller.rememberSystemUiController
+import dagger.hilt.android.AndroidEntryPoint
 import mx.edu.dsi_code.notasmvvm.R.color.purple_200
 import mx.edu.dsi_code.notasmvvm.ui.theme.Purple80
 import mx.edu.dsi_code.notasmvvm.ui.theme.Purpura20
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
