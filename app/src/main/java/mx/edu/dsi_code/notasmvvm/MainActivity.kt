@@ -3,6 +3,7 @@ package mx.edu.dsi_code.notasmvvm
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -13,6 +14,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.viewmodel.compose.viewModel
 import mx.edu.dsi_code.notasmvvm.data.NotesDataSource
 import mx.edu.dsi_code.notasmvvm.model.Note
 import mx.edu.dsi_code.notasmvvm.screen.NoteScreen
@@ -20,6 +22,7 @@ import mx.edu.dsi_code.notasmvvm.ui.theme.NotasMVVMTheme
 import com.google.accompanist.systemuicontroller.rememberSystemUiController
 import dagger.hilt.android.AndroidEntryPoint
 import mx.edu.dsi_code.notasmvvm.R.color.purple_200
+import mx.edu.dsi_code.notasmvvm.screen.NoteViewModel
 import mx.edu.dsi_code.notasmvvm.ui.theme.Purple80
 import mx.edu.dsi_code.notasmvvm.ui.theme.Purpura20
 
@@ -43,17 +46,14 @@ class MainActivity : ComponentActivity() {
                                    color = Purpura20,
                                )
                            }
-
+                           /*
                            val notes = remember{
                                mutableListOf<Note>()
-                           }
-                           NoteScreen(notas= notes,
-                               onRemoveNote ={
-                                             notes.remove(it)
-                               },
-                               onAddNote = {
-                                   notes.add(it)
-                               })
+                           }*/
+                           val noteViewModel : NoteViewModel by viewModels()
+                           NotesApp(noteViewModel)
+
+
                        }
                        ///fin de surface
                    }
@@ -63,6 +63,22 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
+
+
+@Composable
+fun NotesApp(noteViewModel: NoteViewModel = viewModel()){
+    val noteList = noteViewModel.getAllNotes()
+
+    NoteScreen(notas= noteList,
+        onRemoveNote ={
+            noteViewModel.removeNote(it)
+        },
+        onAddNote = {
+            noteViewModel.addNote(it)
+        })
+
+}
+
 
 @Composable
 fun Greeting(name: String, modifier: Modifier = Modifier) {

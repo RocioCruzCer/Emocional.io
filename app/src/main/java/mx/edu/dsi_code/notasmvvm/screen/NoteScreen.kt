@@ -35,6 +35,7 @@ import java.time.format.DateTimeFormatter
 
 import   androidx.compose.foundation.layout.Column
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -133,3 +134,7 @@ fun NoteRow(modifier:Modifier = Modifier, note: Note, onNoteClicked:(Note)-> Uni
     }
   }
 }
+
+
+
+
