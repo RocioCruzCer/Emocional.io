@@ -126,9 +126,9 @@ fun NoteRow(modifier:Modifier = Modifier, note: Note, onNoteClicked:(Note)-> Uni
     horizontalAlignment = Alignment.Start){
             Text(text = note.title, style = MaterialTheme.typography.titleMedium)
             Text(text = note.description, style = MaterialTheme.typography.bodyMedium)
-            Text(text = note.entryDate.format(DateTimeFormatter
-                .ofPattern("EEE, d,MMM")),
-                style = MaterialTheme.typography.labelSmall)
+            //Text(text = note.entryDate.format(DateTimeFormatter
+              //  .ofPattern("EEE, d,MMM")),
+               // style = MaterialTheme.typography.labelSmall)
             ///formato incluye dia de la semana fecha y mes
     }
   }
