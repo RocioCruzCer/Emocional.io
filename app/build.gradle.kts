@@ -63,9 +63,9 @@ dependencies {
     annotationProcessor("androidx.room:room-compiler:$room_version")
 
     //corrutinas
-    implementation("org.jetbrains.kotlinx:kotlinx-corutines-core:1.5.2")
-    implementation("org.jetbrains.kotlinx:kotlinx-corutines-android:1.5.2")
-    implementation("org.jetbrains.kotlinx:kotlinx-corutines-play-services:1.5.2")
+    //implementation("org.jetbrains.kotlinx:kotlinx-corutines-core:1.5.2")
+    //implementation("org.jetbrains.kotlinx:kotlinx-corutines-android:1.5.2")
+    //implementation("org.jetbrains.kotlinx:kotlinx-corutines-play-services:1.5.2")
 
 
 
