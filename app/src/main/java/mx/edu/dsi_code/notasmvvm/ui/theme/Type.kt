@@ -2,10 +2,20 @@ package mx.edu.dsi_code.notasmvvm.ui.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import mx.edu.dsi_code.notasmvvm.R
 
+// Declara las familias de fuentes
+val Poppins = FontFamily(
+    Font(R.font.poppins_black, FontWeight.Black)
+)
+
+val Montserrat = FontFamily(
+    Font(R.font.montserrat_regular, FontWeight.Normal)
+)
 // Set of Material typography styles to start with
 val Typography = Typography(
     bodyLarge = TextStyle(
@@ -15,6 +25,26 @@ val Typography = Typography(
         lineHeight = 24.sp,
         letterSpacing = 0.5.sp
     )
+
+)
+
+
+// Define la tipografía global
+val AppTypography = Typography(
+    displayLarge = TextStyle(
+        fontFamily = Poppins,
+        fontWeight = FontWeight.Black,
+        fontSize = 50.sp
+    ),
+    bodyLarge = TextStyle(
+        fontFamily = Montserrat,
+        fontWeight = FontWeight.Normal,
+        fontSize = 16.sp
+    )
+    // Puedes seguir definiendo más estilos según necesites
+)
+
+
     /* Other default text styles to override
     titleLarge = TextStyle(
         fontFamily = FontFamily.Default,
@@ -31,4 +61,3 @@ val Typography = Typography(
         letterSpacing = 0.5.sp
     )
     */
-)

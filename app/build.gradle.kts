@@ -9,6 +9,7 @@ android {
     namespace = "mx.edu.dsi_code.notasmvvm"
     compileSdk = 34
 
+
     defaultConfig {
         applicationId = "mx.edu.dsi_code.notasmvvm"
         minSdk = 30
@@ -52,27 +53,22 @@ android {
 }
 
 dependencies {
-
-
-
+    implementation("com.kizitonwose.calendar:compose:2.3.0")
+    implementation("io.coil-kt:coil-compose:2.2.2")
+    implementation ("androidx.compose.material3:material3:1.2.0")
+    implementation("androidx.compose.material:material-icons-extended:1.5.4")
+    implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.4.0")
     val room_version = "2.6.1"
     implementation("androidx.room:room-ktx:$room_version")
     kapt ("androidx.room:room-compiler:$room_version")
-
-    //nuevas  anotaciones para room
     annotationProcessor("androidx.room:room-compiler:$room_version")
-
-    //corrutinas
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0-RC")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0-RC")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.9.0-RC")
-
-    //  Dagger Hilt
     implementation ("com.google.dagger:hilt-android:2.46.1")
     kapt ("com.google.dagger:hilt-compiler:2.46.1")
-    //Agregamos el viewModel
     implementation("org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-compose:2.8.0")
-    //Navigation
+    implementation("androidx.navigation:navigation-compose:2.7.6")
     val nav_version = "2.5.3"
     implementation("androidx.navigation:navigation-compose:$nav_version")
     implementation("androidx.core:core-ktx:1.13.1")

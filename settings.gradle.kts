@@ -13,5 +13,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "NotasMVVM"
+rootProject.name = "EMOCIONAL.IO"
 include(":app")
