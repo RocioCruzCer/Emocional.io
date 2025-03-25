@@ -1,6 +1,7 @@
 package mx.edu.dsi_code.notasmvvm.navigation
 
 
+import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -30,7 +31,6 @@ fun AppNavigation(navController: NavHostController) {
         composable("register_screen") {
             RegisterScreen(navController)
         }
-
         composable("start_screen") {
             StartScreen(navController)
         }
@@ -49,8 +49,11 @@ fun AppNavigation(navController: NavHostController) {
         composable("profile_screen") {
             ProfileScreen(navController)
         }
+        composable("name_input_screen") {
+            NameInputScreen(navController)
+        }
         composable("main_screen") {
-            MainScreen() // ✅ Llama el menú inferior con las 4 pantallas
+            MainScreen() // Llama el menú inferior con las 4 pantallas
         }
 
     }

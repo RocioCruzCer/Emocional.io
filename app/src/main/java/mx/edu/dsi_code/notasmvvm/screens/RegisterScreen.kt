@@ -1,34 +1,48 @@
 package mx.edu.dsi_code.notasmvvm.screens
 
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import android.util.Log
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Email
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import mx.edu.dsi_code.notasmvvm.model.User
+import mx.edu.dsi_code.notasmvvm.model.UserResponse
+import retrofit2.Response
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.*
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.input.*
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.unit.*
 import mx.edu.dsi_code.notasmvvm.R
-
+import retrofit2.Call
+import retrofit2.Callback
+import mx.edu.dsi_code.notasmvvm.api.ApiService
 
 @Composable
 fun RegisterScreen(navController: NavController) {
@@ -36,12 +50,81 @@ fun RegisterScreen(navController: NavController) {
     val poppinsFont = FontFamily(Font(R.font.poppins_black, FontWeight.Black))
     val montserratFont = FontFamily(Font(R.font.montserrat_regular, FontWeight.Normal))
 
+    var name by remember { mutableStateOf("") } // Nombre o apodo
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
     var confirmPasswordVisible by remember { mutableStateOf(false) }
 
+    var emailError by remember { mutableStateOf("") }
+    var passwordError by remember { mutableStateOf("") }
+    var confirmPasswordError by remember { mutableStateOf("") }
+    var nameError by remember { mutableStateOf("") }
+
+    val scope = rememberCoroutineScope() // Definir el CoroutineScope
+
+    // Función para validar el correo
+    fun isValidEmail(email: String): Boolean {
+        return android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()
+    }
+
+    // Función para validar la contraseña (al menos 8 caracteres)
+    fun isValidPassword(password: String): Boolean {
+        return password.length >= 8
+    }
+
+    // Función para validar que las contraseñas coincidan
+    fun doPasswordsMatch(password: String, confirmPassword: String): Boolean {
+        return password == confirmPassword
+    }
+
+    // Función para validar el nombre (no vacío)
+    fun isValidName(name: String): Boolean {
+        return name.isNotEmpty()
+    }
+
+    // Función para registrar al usuario
+    fun registerUser() {
+        // Verificar que todos los campos sean válidos
+        if (!isValidEmail(email)) {
+            emailError = "Correo inválido"
+        }
+        if (!isValidPassword(password)) {
+            passwordError = "La contraseña debe tener al menos 8 caracteres"
+        }
+        if (!doPasswordsMatch(password, confirmPassword)) {
+            confirmPasswordError = "Las contraseñas no coinciden"
+        }
+        if (!isValidName(name)) {
+            nameError = "El nombre no puede estar vacío"
+        }
+
+        // Si todo es válido, hacer la solicitud a la API para registrar al usuario
+        if (isValidEmail(email) && isValidPassword(password) && doPasswordsMatch(password, confirmPassword) && isValidName(name)) {
+            val user = User(email, password, name) // Crea el objeto con los datos
+
+            // Llamar a Retrofit para registrar el usuario dentro de una corrutina
+            scope.launch {
+                try {
+                    val response = ApiService.RetrofitClient.apiService.registerUser(user)
+
+                    if (response.isSuccessful) {
+                        // Redirigir a la siguiente pantalla si el registro es exitoso
+                        navController.navigate("start_screen")
+                    } else {
+                        // Manejar el error si la respuesta no es exitosa
+                        Log.d("RegisterUserError", "Error: ${response.errorBody()?.string()}")
+                    }
+                } catch (e: Exception) {
+                    // Manejar error de conexión
+                    Log.d("RegisterUserError", "Excepción: ${e.message}")
+                }
+            }
+        }
+    }
+
+    // UI Composables
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -49,7 +132,6 @@ fun RegisterScreen(navController: NavController) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Top
     ) {
-
         // Título
         Text(
             text = "Crear Cuenta",
@@ -60,10 +142,57 @@ fun RegisterScreen(navController: NavController) {
             modifier = Modifier.padding(top = 32.dp, bottom = 24.dp)
         )
 
+        // Campo de Nombre/Apodo
+        OutlinedTextField(
+            value = name,
+            onValueChange = {
+                name = it
+                nameError = "" // Limpiar el error al cambiar el valor
+            },
+            placeholder = {
+                Text(
+                    text = "Tu nombre o apodo",
+                    fontFamily = montserratFont
+                )
+            },
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Default.Person,
+                    contentDescription = "Nombre",
+                    tint = Color(0xFF00468D)
+                )
+            },
+            singleLine = true,
+            shape = RoundedCornerShape(50),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                unfocusedContainerColor = Color(0xFFF2F2F2),
+                focusedContainerColor = Color(0xFFF2F2F2),
+                focusedBorderColor = Color.Transparent,
+                unfocusedBorderColor = Color.Transparent
+            ),
+            isError = nameError.isNotEmpty()
+        )
+        // Mostrar error si el nombre está vacío
+        if (nameError.isNotEmpty()) {
+            Text(
+                text = nameError,
+                color = Color.Red,
+                fontFamily = montserratFont,
+                fontSize = 12.sp,
+                modifier = Modifier.padding(start = 16.dp)
+            )
+        }
+
         // Campo de Correo
         OutlinedTextField(
             value = email,
-            onValueChange = { email = it },
+            onValueChange = {
+                email = it
+                emailError = "" // Limpiar el error al cambiar el valor
+            },
             placeholder = {
                 Text(
                     text = "Correo Electrónico",
@@ -87,13 +216,27 @@ fun RegisterScreen(navController: NavController) {
                 focusedContainerColor = Color(0xFFF2F2F2),
                 focusedBorderColor = Color.Transparent,
                 unfocusedBorderColor = Color.Transparent
-            )
+            ),
+            isError = emailError.isNotEmpty()
         )
+        // Mostrar error si el correo es inválido
+        if (emailError.isNotEmpty()) {
+            Text(
+                text = emailError,
+                color = Color.Red,
+                fontFamily = montserratFont,
+                fontSize = 12.sp,
+                modifier = Modifier.padding(start = 16.dp)
+            )
+        }
 
         // Campo de Contraseña
         OutlinedTextField(
             value = password,
-            onValueChange = { password = it },
+            onValueChange = {
+                password = it
+                passwordError = ""
+            },
             placeholder = {
                 Text(
                     text = "Contraseña",
@@ -124,13 +267,27 @@ fun RegisterScreen(navController: NavController) {
                 focusedContainerColor = Color(0xFFF2F2F2),
                 focusedBorderColor = Color.Transparent,
                 unfocusedBorderColor = Color.Transparent
-            )
+            ),
+            isError = passwordError.isNotEmpty()
         )
+        // Mostrar error si la contraseña es inválida
+        if (passwordError.isNotEmpty()) {
+            Text(
+                text = passwordError,
+                color = Color.Red,
+                fontFamily = montserratFont,
+                fontSize = 12.sp,
+                modifier = Modifier.padding(start = 16.dp)
+            )
+        }
 
         // Campo de Confirmar Contraseña
         OutlinedTextField(
             value = confirmPassword,
-            onValueChange = { confirmPassword = it },
+            onValueChange = {
+                confirmPassword = it
+                confirmPasswordError = "" // Limpiar el error al cambiar el valor
+            },
             placeholder = {
                 Text(
                     text = "Confirmar Contraseña",
@@ -161,16 +318,25 @@ fun RegisterScreen(navController: NavController) {
                 focusedContainerColor = Color(0xFFF2F2F2),
                 focusedBorderColor = Color.Transparent,
                 unfocusedBorderColor = Color.Transparent
-            )
+            ),
+            isError = confirmPasswordError.isNotEmpty()
         )
+        // Mostrar error si las contraseñas no coinciden
+        if (confirmPasswordError.isNotEmpty()) {
+            Text(
+                text = confirmPasswordError,
+                color = Color.Red,
+                fontFamily = montserratFont,
+                fontSize = 12.sp,
+                modifier = Modifier.padding(start = 16.dp)
+            )
+        }
 
         Spacer(modifier = Modifier.height(24.dp))
 
         // Botón Crear Cuenta
         Button(
-            onClick = {
-            navController.navigate("start_screen")
-                      },
+            onClick = { registerUser() }, // Llamar a la función de registro
             shape = RoundedCornerShape(50),
             modifier = Modifier
                 .fillMaxWidth()
@@ -189,71 +355,7 @@ fun RegisterScreen(navController: NavController) {
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // Texto separador
-        Text(
-            text = "• O Continúa Con •",
-            color = Color.Gray,
-            textAlign = TextAlign.Center,
-            fontFamily = montserratFont,
-            modifier = Modifier.padding(bottom = 16.dp)
-        )
-
-        // Iconos de redes sociales
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(24.dp)
-        ) {
-            // Google
-            IconButton(
-                onClick = { /* Acción Google */ },
-                modifier = Modifier
-                    .size(48.dp)
-                    .background(Color.White, CircleShape)
-                    .border(width = 1.dp, color = Color(0xFF0567B2), shape = CircleShape)
-            ) {
-                Image(
-                    painter = painterResource(id = R.drawable.ic_google),
-                    contentDescription = "Google",
-                    modifier = Modifier.size(24.dp),
-                    contentScale = ContentScale.Fit
-                )
-            }
-
-            // Apple
-            IconButton(
-                onClick = { /* Acción Apple */ },
-                modifier = Modifier
-                    .size(48.dp)
-                    .background(Color.White, CircleShape)
-                    .border(width = 1.dp, color = Color(0xFF0567B2), shape = CircleShape)
-            ) {
-                Image(
-                    painter = painterResource(id = R.drawable.ic_apple),
-                    contentDescription = "Apple",
-                    modifier = Modifier.size(24.dp),
-                    contentScale = ContentScale.Fit
-                )
-            }
-
-            // Facebook
-            IconButton(
-                onClick = { /* Acción Facebook */ },
-                modifier = Modifier
-                    .size(48.dp)
-                    .background(Color.White, CircleShape)
-                    .border(width = 1.dp, color = Color(0xFF0567B2), shape = CircleShape)
-            ) {
-                Image(
-                    painter = painterResource(id = R.drawable.ic_facebook),
-                    contentDescription = "Facebook",
-                    modifier = Modifier.size(24.dp),
-                    contentScale = ContentScale.Fit
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Texto de "¿Ya tienes cuenta?"
+        // Texto final de registro
         Row {
             Text(
                 text = "¿Ya tienes cuenta? ",
@@ -267,10 +369,7 @@ fun RegisterScreen(navController: NavController) {
                 fontFamily = montserratFont,
                 textDecoration = TextDecoration.Underline,
                 modifier = Modifier.clickable {
-                    navController.navigate("login_screen") {
-                        // Evita volver atrás a esta pantalla si no quieres que regresen
-                        popUpTo("register_screen") { inclusive = true }
-                    }
+                    navController.navigate("login_screen")
                 }
             )
         }
@@ -278,5 +377,7 @@ fun RegisterScreen(navController: NavController) {
         Spacer(modifier = Modifier.height(16.dp))
     }
 }
+
+
 
 

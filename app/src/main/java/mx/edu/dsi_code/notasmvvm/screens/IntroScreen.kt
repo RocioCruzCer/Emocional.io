@@ -1,7 +1,6 @@
 package mx.edu.dsi_code.notasmvvm.screens
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -12,12 +11,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -37,18 +34,6 @@ fun IntroScreen(navController: NavController) {
             .padding(24.dp)
     ) {
 
-        // Flecha atrás
-        IconButton(
-            onClick = { /* Acción de volver */ },
-            modifier = Modifier.align(Alignment.TopStart)
-        ) {
-            Icon(
-                imageVector = Icons.Default.ArrowBack,
-                contentDescription = "Volver",
-                tint = Color(0xFF0356A0)
-            )
-        }
-
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -66,7 +51,7 @@ fun IntroScreen(navController: NavController) {
                 fontWeight = FontWeight.Black,
                 fontFamily = poppinsFont,
                 color = Color(0xFF0356A0),
-                textAlign = TextAlign.Center,
+                textAlign = TextAlign.Start,
                 modifier = Modifier.padding(bottom = 16.dp)
             )
 
