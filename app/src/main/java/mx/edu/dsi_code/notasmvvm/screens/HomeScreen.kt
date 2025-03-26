@@ -5,7 +5,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -29,56 +28,66 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NavController
-import mx.edu.dsi_code.notasmvvm.R
-import mx.edu.dsi_code.notasmvvm.viewmodel.EmocionViewModel
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.getValue
-import androidx.compose.foundation.lazy.items
-import androidx.compose.runtime.livedata.observeAsState
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.Text
-import androidx.compose.ui.graphics.vector.VectorProperty
-import androidx.compose.ui.unit.sp
-
+import android.util.Log
+import androidx.compose.runtime.*
+import androidx.navigation.NavController
+import mx.edu.dsi_code.notasmvvm.api.RetrofitClient
+import mx.edu.dsi_code.notasmvvm.model.EmotionFrequencyResponse
+import mx.edu.dsi_code.notasmvvm.R
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import mx.edu.dsi_code.notasmvvm.model.Frecuencia
 
 @Composable
 fun HomeScreen(navController: NavController) {
-
     val poppinsFont = FontFamily(Font(R.font.poppins_black, FontWeight.Black))
     val montserratFont = FontFamily(Font(R.font.montserrat_regular, FontWeight.Normal))
+
+    // Estado para manejar las frecuencias, error y estado de carga
+    var frequencies by remember { mutableStateOf<List<Frecuencia>>(emptyList()) }
+    var error by remember { mutableStateOf<String?>(null) }
+    var loading by remember { mutableStateOf(false) }
+
+    val userId = 43 // Cambia esto por el ID del usuario actual
+
+    // Llamamos a la API para obtener las frecuencias de las emociones
+    LaunchedEffect(userId) {
+        loading = true
+        try {
+            val response = RetrofitClient.apiService.getFrecuenciasEmocionales(userId)
+            if (response.isSuccessful) {
+                val data = response.body()?.Data?.ListaFrecuencias
+                frequencies = data ?: emptyList()
+                error = if (frequencies.isEmpty()) "No se han registrado emociones" else null
+            } else {
+                error = "Error al obtener las frecuencias."
+            }
+        } catch (e: Exception) {
+            error = "Error al conectar con la API: ${e.message}"
+            Log.e("HomeScreen", "Error al obtener frecuencias: ${e.message}")
+        }
+        loading = false
+    }
+
+    // Función para obtener el color basado en el id_emocion
+    fun getEmotionColor(idEmocion: Int): Color {
+        return when (idEmocion) {
+            1 -> Color(0xFFFFEB3B)
+            2 -> Color(0xFF9C27B0)
+            3 -> Color(0xFFF44336)
+            4 -> Color(0xFF2196F3)
+            5 -> Color(0xFF4CAF50)
+            else -> Color.Gray
+        }
+    }
 
     // Fecha actual
     val currentDate = LocalDate.now()
     val formatter = DateTimeFormatter.ofPattern("dd 'de' MMMM yyyy")
     val formattedDate = currentDate.format(formatter)
-
-    // Progreso (simulado)
-    val progress = 0.65f // 65%
 
     Box(
         modifier = Modifier
@@ -87,7 +96,6 @@ fun HomeScreen(navController: NavController) {
             .padding(16.dp),
         contentAlignment = Alignment.Center
     ) {
-
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
@@ -96,7 +104,7 @@ fun HomeScreen(navController: NavController) {
             // Título
             Text(
                 text = "Tus Emociones",
-                fontFamily = montserratFont,
+                fontFamily = poppinsFont,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 24.sp,
                 color = Color(0xFF0356A0)
@@ -117,15 +125,21 @@ fun HomeScreen(navController: NavController) {
                     )
                 }
 
-                // Progreso
-                Canvas(modifier = Modifier.size(300.dp)) {
-                    drawArc(
-                        color = Color(0xFF0567B2),
-                        startAngle = -90f,
-                        sweepAngle = 360 * progress,
-                        useCenter = false,
-                        style = Stroke(width = 20f, cap = StrokeCap.Round)
-                    )
+                // Progreso con el color según las emociones
+                frequencies.forEachIndexed { index, frequency ->
+                    val emotionColor = getEmotionColor(frequency.id_emocion)  // Usamos id_emocion para asignar el color
+                    val sweepAngle = 360 * (frequency.frecuencia / frequencies.sumOf { it.frecuencia }.toFloat())
+
+                    // Dibuja el progreso en el círculo
+                    Canvas(modifier = Modifier.size(300.dp)) {
+                        drawArc(
+                            color = emotionColor,
+                            startAngle = -90f + (index * sweepAngle),
+                            sweepAngle = sweepAngle,
+                            useCenter = false,
+                            style = Stroke(width = 20f, cap = StrokeCap.Round)
+                        )
+                    }
                 }
 
                 // Contenido del círculo
@@ -175,11 +189,3 @@ fun HomeScreen(navController: NavController) {
         }
     }
 }
-
-
-
-
-
-
-
-

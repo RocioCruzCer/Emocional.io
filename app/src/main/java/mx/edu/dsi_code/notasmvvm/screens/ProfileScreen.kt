@@ -1,19 +1,12 @@
 package mx.edu.dsi_code.notasmvvm.screens
 
-import androidx.compose.foundation.Canvas
+import android.util.Log
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.Font
@@ -22,23 +15,97 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import androidx.compose.ui.res.painterResource
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import mx.edu.dsi_code.notasmvvm.api.RetrofitClient
+import mx.edu.dsi_code.notasmvvm.model.Nota
 import mx.edu.dsi_code.notasmvvm.R
-
 
 @Composable
 fun ProfileScreen(navController: NavController) {
-
     val poppinsFont = FontFamily(Font(R.font.poppins_black, FontWeight.Black))
     val montserratFont = FontFamily(Font(R.font.montserrat_regular, FontWeight.Normal))
 
-    // Simulación de notas
-    val notas = listOf(
-        "Hoy me sentí feliz porque salí a caminar.",
-        "Día complicado en el trabajo, pero lo superé."
-    )
+    // Estado para manejar las notas, error y estado de carga
+    var notas by remember { mutableStateOf<List<Nota>>(emptyList()) }
+    var error by remember { mutableStateOf<String?>(null) }
+    var loading by remember { mutableStateOf(false) }
+    var showDialog by remember { mutableStateOf(false) }
+    var notaToDelete by remember { mutableStateOf<Nota?>(null) }
 
-    // Datos de ejemplo para la gráfica semanal (valores ficticios)
-    val datosSemana = listOf(3, 5, 2, 4, 6, 1, 4)
+    val userId = 4 // Cambia esto por el ID del usuario actual
+
+    // Lanzamos la llamada a la API cuando el Composable se monta
+    LaunchedEffect(userId) {
+        loading = true
+        try {
+            val response = RetrofitClient.apiService.getNotasPorUsuario(userId)
+            if (response.isSuccessful) {
+                val data = response.body()?.Data
+                notas = data ?: emptyList()
+                error = if (notas.isEmpty()) "No se han registrado notas" else null
+            } else {
+                error = "Error al obtener las notas."
+            }
+        } catch (e: Exception) {
+            error = "Error al conectar con la API: ${e.message}"
+            Log.e("ProfileScreen", "Error al obtener notas: ${e.message}")
+        }
+        loading = false
+    }
+
+    // Función para eliminar una nota
+    fun eliminarNota(notaId: Int) {
+        loading = true
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val response = RetrofitClient.apiService.eliminarNotaPorId(notaId)
+                withContext(Dispatchers.Main) {
+                    if (response.isSuccessful) {
+                        // Si se eliminó, actualizamos las notas
+                        notas = notas.filter { it.id_nota != notaId }
+                        Log.d("ProfileScreen", "Nota eliminada correctamente.")
+                    } else {
+                        error = "Error al eliminar la nota."
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    error = "Error al conectar con la API: ${e.message}"
+                    Log.e("ProfileScreen", "Error al eliminar nota: ${e.message}")
+                }
+            }
+            loading = false
+        }
+    }
+
+    // Mostrar un cuadro de confirmación antes de eliminar la nota
+    if (showDialog && notaToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { showDialog = false },
+            title = { Text(text = "Confirmar Eliminación") },
+            text = { Text(text = "¿Estás seguro de que deseas eliminar esta nota?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        // Eliminar la nota
+                        eliminarNota(notaToDelete!!.id_nota)
+                        showDialog = false
+                    }
+                ) {
+                    Text("Sí")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDialog = false }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
 
     LazyColumn(
         modifier = Modifier
@@ -46,7 +113,6 @@ fun ProfileScreen(navController: NavController) {
             .background(Color.White)
             .padding(16.dp)
     ) {
-
         // Título de perfil
         item {
             Text(
@@ -58,81 +124,94 @@ fun ProfileScreen(navController: NavController) {
             )
         }
 
-        // Sección de Notas
-        item {
-            Text(
-                text = "Tus Notas",
-                fontFamily = montserratFont,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF0567B2),
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
-
-            notas.forEach { nota ->
-                Card(
-                    shape = RoundedCornerShape(12.dp),
-                    elevation = CardDefaults.cardElevation(4.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5)),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp)
-                ) {
-                    Text(
-                        text = nota,
-                        fontFamily = montserratFont,
-                        fontSize = 16.sp,
-                        color = Color.DarkGray,
-                        modifier = Modifier.padding(16.dp)
-                    )
-                }
+        // Mostrar error si hay
+        if (!error.isNullOrEmpty()) {
+            item {
+                Text(
+                    text = error ?: "",
+                    color = Color.Red,
+                    fontFamily = montserratFont,
+                    fontSize = 16.sp,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
             }
-
-            Spacer(modifier = Modifier.height(24.dp))
         }
 
-        // Sección de Estadísticas
-        item {
-            Text(
-                text = "Estadísticas Semanales",
-                fontFamily = montserratFont,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF0567B2),
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
+        if (notas.isNotEmpty()) {
+            item {
+                Text(
+                    text = "Tus Notas",
+                    fontFamily = montserratFont,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF0567B2),
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
 
-            // Gráfica sencilla (simulación de barras)
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp)
-                    .background(Color(0xFFF5F5F5), shape = RoundedCornerShape(12.dp))
-                    .padding(16.dp)
-            ) {
-                Canvas(modifier = Modifier.fillMaxSize()) {
-                    val barWidth = size.width / (datosSemana.size * 2)
-                    val maxValor = datosSemana.maxOrNull() ?: 1
+                notas.forEach { nota ->
+                    Card(
+                        shape = RoundedCornerShape(12.dp),
+                        elevation = CardDefaults.cardElevation(4.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Emoción: ${nota.emocion.emocionNombre}\n${nota.texto}",
+                                        fontFamily = montserratFont,
+                                        fontSize = 16.sp,
+                                        color = Color.DarkGray
+                                    )
+                                }
 
-                    datosSemana.forEachIndexed { index, valor ->
-                        val barHeight = (valor / maxValor.toFloat()) * size.height
-
-                        drawRect(
-                            color = Color(0xFF0567B2),
-                            topLeft = androidx.compose.ui.geometry.Offset(
-                                x = (index * 2 + 1) * barWidth,
-                                y = size.height - barHeight
-                            ),
-                            size = androidx.compose.ui.geometry.Size(
-                                width = barWidth,
-                                height = barHeight
-                            )
-                        )
+                                // Ícono de la papelera para eliminar la nota
+                                IconButton(
+                                    onClick = {
+                                        notaToDelete = nota
+                                        showDialog = true
+                                    },
+                                    modifier = Modifier.padding(8.dp)
+                                ) {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.ic_baseline_delete_24),
+                                        contentDescription = "Eliminar Nota",
+                                        tint = Color(0xFF00468D)
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
+        } else {
+            item {
+                Text(
+                    text = "No se han registrado notas",
+                    color = Color.Gray,
+                    fontFamily = montserratFont,
+                    fontSize = 16.sp
+                )
+            }
+        }
 
-            Spacer(modifier = Modifier.height(32.dp))
+        // Mostrar estado de carga
+        if (loading) {
+            item {
+                Text(
+                    text = "Cargando notas...",
+                    fontFamily = montserratFont,
+                    fontSize = 16.sp,
+                    color = Color.Gray,
+                    modifier = Modifier.padding(top = 16.dp)
+                )
+            }
         }
     }
 }

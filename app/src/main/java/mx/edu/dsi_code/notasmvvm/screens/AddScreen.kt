@@ -1,7 +1,35 @@
 package mx.edu.dsi_code.notasmvvm.screens
 
-
-import android.util.Log
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.Text
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.*
+import androidx.compose.ui.text.input.ImeAction
+import kotlinx.coroutines.launch
+import mx.edu.dsi_code.notasmvvm.api.ApiService
+import mx.edu.dsi_code.notasmvvm.model.Nota
+import mx.edu.dsi_code.notasmvvm.R
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -11,72 +39,90 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Text
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.navigation.NavController
-import mx.edu.dsi_code.notasmvvm.R
 import mx.edu.dsi_code.notasmvvm.model.Emotion
-import androidx.compose.foundation.border
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.lifecycle.viewmodel.compose.viewModel
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import mx.edu.dsi_code.notasmvvm.api.ApiService
-import mx.edu.dsi_code.notasmvvm.model.Note
-import kotlinx.datetime.LocalDateTime
 import mx.edu.dsi_code.notasmvvm.model.Emocion
-import mx.edu.dsi_code.notasmvvm.model.Nota
 import kotlinx.datetime.*
-import mx.edu.dsi_code.notasmvvm.viewmodel.LoginViewModel
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.material3.SnackbarHost
-import kotlinx.coroutines.launch
-import retrofit2.Response
-import kotlinx.datetime.Clock
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
+import java.time.LocalDate
+import android.util.Log
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.text.font.FontWeight
 
 @Composable
-fun AddScreen(navController: NavController, loginViewModel: LoginViewModel = viewModel()) {
-    val userId = loginViewModel.userId.value
-    var selectedEmotion by remember { mutableStateOf<Emotion?>(null) }
+fun AddScreen(navController: NavController) {
+    val poppinsFont = FontFamily(Font(R.font.poppins_black, FontWeight.Black))
+    val montserratFont = FontFamily(Font(R.font.montserrat_regular, FontWeight.Normal))
+
+    var selectedEmotion by remember { mutableStateOf(1) }  // Default emotion (Feliz)
     var noteText by remember { mutableStateOf("") }
+    var isLoading by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf("") }
 
     val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
-    val haptic = LocalHapticFeedback.current
+    val coroutineScope = rememberCoroutineScope()
+
+    // ID de usuario fijo para pruebas (id = 12)
+    val userId = 12
+
+    // Emociones disponibles (sin imágenes, solo nombre, color y ID)
+    val emotionsList = listOf(
+        Emotion("Feliz", Color(0xFFFFEB3B), 1),
+        Emotion("Ansia", Color(0xFF9C27B0), 2),
+        Emotion("Enojo", Color(0xFFF44336), 3),
+        Emotion("Triste", Color(0xFF2196F3), 4),
+        Emotion("Calma", Color(0xFF4CAF50), 5)
+    )
+
+    // Función para agregar la nota
+    fun addNote() {
+        if (noteText.isNotBlank()) {
+            isLoading = true
+            coroutineScope.launch {
+                try {
+                    val currentDate = LocalDate.now().toString() // Obtener la fecha actual en formato ISO (YYYY-MM-DD)
+                    // Convertimos el objeto Emotion a Emocion
+                    val selectedEmotionObject = emotionsList.find { it.id == selectedEmotion }
+                    val emocion = Emocion(id_emocion = selectedEmotionObject?.id ?: 0, emocionNombre = selectedEmotionObject?.name ?: "Desconocida")
+
+                    val response = ApiService.RetrofitClient.apiService.addNote(
+                        Nota(
+                            id_nota = 0,
+                            texto = noteText,
+                            fecha = currentDate,
+                            emocion = emocion,
+                            id_usuario = userId,
+                            id_emocion = selectedEmotion
+                        )
+                    )
+
+                    if (response.isSuccessful) {
+                        snackbarHostState.showSnackbar("Nota guardada con éxito")
+                        navController.popBackStack()
+                    } else {
+                        errorMessage = "Error al guardar la nota."
+                        snackbarHostState.showSnackbar("Error: ${response.code()}")
+                    }
+                } catch (e: Exception) {
+                    errorMessage = "Error de conexión: ${e.message}"
+                    snackbarHostState.showSnackbar("Error: ${e.message}")
+                }
+                isLoading = false
+            }
+        } else {
+            errorMessage = "La nota no puede estar vacía."
+        }
+    }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -89,147 +135,165 @@ fun AddScreen(navController: NavController, loginViewModel: LoginViewModel = vie
                 .padding(paddingValues)
                 .padding(24.dp)
         ) {
-            // Botón de regreso usando NavController
-            IconButton(onClick = { navController.popBackStack() }) {
-                Icon(
-                    imageVector = Icons.Default.ArrowBack,
-                    contentDescription = "Volver",
-                    tint = Color(0xFF0356A0)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
+            // Título de la pantalla
             Text(
                 text = "Nueva Nota",
                 fontSize = 28.sp,
                 color = Color(0xFF0356A0),
+                fontFamily = poppinsFont,
                 modifier = Modifier.padding(bottom = 16.dp)
             )
 
+            // Selector de emoción (por ejemplo: Feliz, Triste, etc.)
             Text(
                 text = "Selecciona una emoción",
                 fontSize = 16.sp,
                 color = Color(0xFF444444),
-                modifier = Modifier.padding(bottom = 16.dp)
+                fontFamily = montserratFont,
+                modifier = Modifier.padding(bottom = 8.dp)
             )
 
             EmocionesConIcono(
-                emotions = listOf(
-                    Emotion("Feliz", 0, Color(0xFFFFEB3B), 1),
-                    Emotion("Ansia", 0, Color(0xFF9C27B0), 2),
-                    Emotion("Enojo", 0, Color(0xFFF44336), 3),
-                    Emotion("Triste", 0, Color(0xFF2196F3), 4),
-                    Emotion("Calma", 0, Color(0xFF4CAF50), 5)
-                ),
-                selectedEmotion = selectedEmotion,
-                onEmotionSelected = { selectedEmotion = it }
+                emotions = emotionsList,
+                selectedEmotion = emotionsList.find { it.id == selectedEmotion },
+                onEmotionSelected = { selectedEmotion = it.id }
             )
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            Column(
+            // Campo de texto para la nota
+
+            Text(
+                text = "Escribe tu nota",
+                fontSize = 16.sp,
+                color = Color(0xFF444444),
+                fontFamily = montserratFont,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+            BasicTextField(
+                value = noteText,
+                onValueChange = { noteText = it },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color.White, RoundedCornerShape(12.dp))
-                    .border(1.dp, Color(0xFFE0E0E0), RoundedCornerShape(12.dp))
-                    .padding(horizontal = 16.dp, vertical = 12.dp)
-            ) {
-                Text(
-                    text = "Escribe una nota",
-                    fontSize = 14.sp,
-                    color = Color(0xFF444444),
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
+                    .height(160.dp)
+                    .padding(16.dp)
+                    .background(Color.White, shape = RoundedCornerShape(12.dp))
+                    .border(1.dp, Color(0xFFE0E0E0), shape = RoundedCornerShape(12.dp)),
+                textStyle = TextStyle(color = Color.Black, fontSize = 16.sp, fontFamily = montserratFont),
+                keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { /* Ocultar teclado si es necesario */ })
+            )
 
-                BasicTextField(
-                    value = noteText,
-                    onValueChange = { noteText = it },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(160.dp),
-                    textStyle = TextStyle(
-                        color = Color.Black,
-                        fontSize = 16.sp
-                    ),
-                    cursorBrush = SolidColor(Color(0xFF0356A0)),
-                    decorationBox = { innerTextField ->
-                        Box(Modifier.fillMaxSize()) {
-                            if (noteText.isEmpty()) {
-                                Text(
-                                    text = "Escribe aquí tu nota...",
-                                    color = Color.Gray
-                                )
-                            }
-                            innerTextField()
-                        }
-                    }
+            if (errorMessage.isNotEmpty()) {
+                Text(
+                    text = errorMessage,
+                    color = Color.Red,
+                    fontSize = 14.sp,
+                    fontFamily = montserratFont,
+                    modifier = Modifier.padding(top = 8.dp)
                 )
             }
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Botón guardar
-        /*    Button(
-                onClick = {
-                    if (selectedEmotion != null && noteText.isNotBlank()) {
-                        // Feedback háptico
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-
-                        // Llamada a la API para agregar la nota
-                        scope.launch {
-                            try {
-                                val response = ApiService.RetrofitClient.apiService.addNote(
-                                    Nota(
-                                        id_nota = 0,  // Si la API maneja la generación del id, dejamos en 0
-                                        id_usuario = userId ?: 0, // Usamos el userId del login
-                                        id_emocion = selectedEmotion?.id ?: 0, // Asignamos el ID de la emoción seleccionada
-                                        texto = noteText
-                                    )
-                                )
-
-                                // Verificar la respuesta
-                                if (response.isSuccessful) {
-                                    snackbarHostState.showSnackbar("¡Nota guardada con éxito!")
-                                } else {
-                                    // Log para obtener el cuerpo del error
-                                    Log.d("AddNoteError", "Error: ${response.errorBody()?.string()}")
-                                    snackbarHostState.showSnackbar("Error al guardar la nota. Código: ${response.code()}")
-                                }
-                            } catch (e: Exception) {
-                                snackbarHostState.showSnackbar("Error al guardar la nota. Excepción: ${e.message}")
-                            }
-                        }
-                    } else {
-                        // Mostrar mensaje si no se seleccionó emoción o no se escribió texto
-                        scope.launch {
-                            snackbarHostState.showSnackbar("Selecciona una emoción y escribe tu nota")
-                        }
-                    }
-
-                    // Limpiar los campos fuera de la corutina
-                    selectedEmotion = null
-                    noteText = ""
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(55.dp)
-                    .shadow(4.dp, RoundedCornerShape(50.dp)),
-                shape = RoundedCornerShape(50.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF0356A0)
-                )
+            // Botón para guardar la nota
+            Button(
+                onClick = { addNote() },
+                modifier = Modifier.fillMaxWidth().height(55.dp),
+                enabled = !isLoading
             ) {
-                Text(
-                    text = "Guardar Nota",
-                    fontSize = 18.sp,
-                    color = Color.White
-                )
-            }*/
-
-            Spacer(modifier = Modifier.height(24.dp))
+                if (isLoading) {
+                    CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+                } else {
+                    Text("Guardar Nota", fontSize = 18.sp, color = Color.White)
+                }
+            }
         }
     }
 }
 
+
+@Composable
+fun EmocionesConIcono(
+    emotions: List<Emotion>,
+    selectedEmotion: Emotion?,
+    onEmotionSelected: (Emotion) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        emotions.forEach { emotion ->
+
+            val isSelected = selectedEmotion == emotion
+
+            // Escala animada para efecto de rebote
+            val scale by animateFloatAsState(
+                targetValue = if (isSelected) 1.3f else 1f,
+                animationSpec = tween(durationMillis = 300)
+            )
+
+            Column(
+                modifier = Modifier.weight(1f),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(50.dp)
+                        .graphicsLayer {
+                            scaleX = scale
+                            scaleY = scale
+                        }
+                        .clickable { onEmotionSelected(emotion) },
+                    contentAlignment = Alignment.Center
+                ) {
+                    // Dibuja la estrella de color
+                    StarShape(
+                        color = emotion.color,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = emotion.name,
+                    fontSize = 12.sp,
+                    color = Color(0xFF444444),
+                    fontFamily = FontFamily(Font(R.font.montserrat_regular))
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun StarShape(
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    Canvas(modifier = modifier.size(60.dp)) {
+        val path = Path().apply {
+            moveTo(size.width * 0.5f, 0f)
+            lineTo(size.width * 0.61f, size.height * 0.35f)
+            lineTo(size.width, size.height * 0.38f)
+            lineTo(size.width * 0.68f, size.height * 0.62f)
+            lineTo(size.width * 0.8f, size.height)
+            lineTo(size.width * 0.5f, size.height * 0.75f)
+            lineTo(size.width * 0.2f, size.height)
+            lineTo(size.width * 0.32f, size.height * 0.62f)
+            lineTo(0f, size.height * 0.38f)
+            lineTo(size.width * 0.39f, size.height * 0.35f)
+            close()
+        }
+
+        drawPath(
+            path = path,
+            color = color
+        )
+    }
+}
 

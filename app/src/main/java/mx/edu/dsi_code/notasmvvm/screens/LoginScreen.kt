@@ -1,5 +1,6 @@
 package mx.edu.dsi_code.notasmvvm.screens
 
+import android.util.Log
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -14,85 +15,62 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.*
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.text.font.Font
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.*
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.*
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import mx.edu.dsi_code.notasmvvm.R
-import mx.edu.dsi_code.notasmvvm.api.ApiService
+import mx.edu.dsi_code.notasmvvm.api.RetrofitClient
+import mx.edu.dsi_code.notasmvvm.data.UserPreferences
 import mx.edu.dsi_code.notasmvvm.model.Login
 import mx.edu.dsi_code.notasmvvm.viewmodel.LoginViewModel
-
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.Text
+import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.input.ImeAction
+import mx.edu.dsi_code.notasmvvm.R
+import androidx.compose.material3.Button
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextDecoration
+import kotlinx.datetime.*
 
 @Composable
-fun LoginScreen(navController: NavController, loginViewModel: LoginViewModel = viewModel()) {
+fun LoginScreen(navController: NavController, viewModel: LoginViewModel = viewModel()) {
+    val context = LocalContext.current
+    val userPreferences = remember { UserPreferences(context) }
+    val coroutineScope = rememberCoroutineScope()
+
     val poppinsFont = FontFamily(Font(R.font.poppins_black, FontWeight.Black))
     val montserratFont = FontFamily(Font(R.font.montserrat_regular, FontWeight.Normal))
 
-    val keyboardController = LocalSoftwareKeyboardController.current
-
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var passwordVisible by remember { mutableStateOf(false) }
+    var isPasswordVisible by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(false) }
     var emailError by remember { mutableStateOf("") }
     var passwordError by remember { mutableStateOf("") }
+    var credentialsError by remember { mutableStateOf("") } // Error de credenciales
 
-    fun isValidEmail(email: String): Boolean {
-        return android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()
-    }
+    val keyboardController = LocalSoftwareKeyboardController.current
 
-    fun isValidPassword(password: String): Boolean {
-        return password.length >= 8
-    }
-
-    fun loginUser() {
-        if (isValidEmail(email) && isValidPassword(password)) {
-            val login = Login(email, password)
-
-            CoroutineScope(Dispatchers.IO).launch {
-                try {
-                    val response = ApiService.RetrofitClient.apiService.loginUser(login)
-                    withContext(Dispatchers.Main) {
-                        if (response.isSuccessful) {
-                            val userResponse = response.body()
-                            val userId = userResponse?.id_usuario ?: 0
-
-                            // Guardamos el userId en el ViewModel
-                            loginViewModel.setUserId(userId)
-
-                            // Si la respuesta es exitosa, navegar a la siguiente pantalla
-                            navController.navigate("start_screen")
-                        } else {
-                            passwordError = "Credenciales inválidas"
-                        }
-                    }
-                } catch (e: Exception) {
-                    withContext(Dispatchers.Main) {
-                        passwordError = "Error al conectar con el servidor"
-                    }
-                }
-            }
-        } else {
-            if (!isValidEmail(email)) emailError = "Correo inválido"
-            if (!isValidPassword(password)) passwordError = "La contraseña debe tener al menos 8 caracteres"
-        }
-    }
-
-    // Layout del LoginScreen con los campos de email y password
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 32.dp, vertical = 16.dp)
-            .imePadding(), // Para subir el contenido cuando se muestra el teclado
+            .imePadding(), // Ajuste para el teclado
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Top
     ) {
@@ -111,6 +89,7 @@ fun LoginScreen(navController: NavController, loginViewModel: LoginViewModel = v
             onValueChange = {
                 email = it
                 emailError = "" // Limpiar el error al cambiar el valor
+                credentialsError = "" // Limpiar el error de credenciales al cambiar el valor
             },
             placeholder = {
                 Text(
@@ -139,6 +118,7 @@ fun LoginScreen(navController: NavController, loginViewModel: LoginViewModel = v
             keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Next),
             isError = emailError.isNotEmpty()
         )
+
         // Mostrar error si el correo es inválido
         if (emailError.isNotEmpty()) {
             Text(
@@ -156,6 +136,7 @@ fun LoginScreen(navController: NavController, loginViewModel: LoginViewModel = v
             onValueChange = {
                 password = it
                 passwordError = "" // Limpiar el error al cambiar el valor
+                credentialsError = "" // Limpiar el error de credenciales al cambiar el valor
             },
             placeholder = {
                 Text(
@@ -171,14 +152,14 @@ fun LoginScreen(navController: NavController, loginViewModel: LoginViewModel = v
                 )
             },
             trailingIcon = {
-                val icon = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff
-                IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                val icon = if (isPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff
+                IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
                     Icon(imageVector = icon, contentDescription = "Mostrar/ocultar contraseña")
                 }
             },
             singleLine = true,
             shape = RoundedCornerShape(50),
-            visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+            visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 8.dp),
@@ -194,6 +175,7 @@ fun LoginScreen(navController: NavController, loginViewModel: LoginViewModel = v
             ),
             isError = passwordError.isNotEmpty()
         )
+
         // Mostrar error si la contraseña es inválida
         if (passwordError.isNotEmpty()) {
             Text(
@@ -205,11 +187,48 @@ fun LoginScreen(navController: NavController, loginViewModel: LoginViewModel = v
             )
         }
 
+        // Mostrar error de credenciales incorrectas
+        if (credentialsError.isNotEmpty()) {
+            Text(
+                text = credentialsError,
+                color = Color.Red,
+                fontFamily = montserratFont,
+                fontSize = 14.sp,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+        }
+
         Spacer(modifier = Modifier.height(24.dp))
 
         // Botón de Iniciar Sesión
         Button(
-            onClick = { loginUser() },
+            onClick = {
+                if (email.isNotBlank() && password.isNotBlank()) {
+                    isLoading = true
+                    coroutineScope.launch {
+                        val response = try {
+                            Log.d("data", "$email $password")
+                            RetrofitClient.apiService.loginUser(Login(email, password))
+                        } catch (e: Exception) {
+                            Log.e("Login", "Error al conectar a la API", e)
+                            null
+                        }
+
+                        isLoading = false
+                        if (response?.isSuccessful == true && response.body() != null) {
+                            val responseBody = response.body()!!
+                            Log.d("datos", responseBody.toString())
+                            val userId = responseBody.Data.toString()
+                            userPreferences.saveUserId(userId)
+                            navController.navigate("intro_screen")
+                        } else {
+                            credentialsError = "Contraseña o correo incorrectos"
+                        }
+                    }
+                } else {
+                    credentialsError = "Por favor ingresa todos los campos."
+                }
+            },
             shape = RoundedCornerShape(50),
             modifier = Modifier
                 .fillMaxWidth()
@@ -219,16 +238,20 @@ fun LoginScreen(navController: NavController, loginViewModel: LoginViewModel = v
                 contentColor = Color.White
             )
         ) {
-            Text(
-                text = "Iniciar Sesión",
-                fontSize = 16.sp,
-                fontFamily = montserratFont
-            )
+            if (isLoading) {
+                CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+            } else {
+                Text(
+                    text = "Iniciar Sesión",
+                    fontSize = 16.sp,
+                    fontFamily = montserratFont
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // Texto final de registro
+        // Texto de redirección
         Row {
             Text(
                 text = "¿No tienes cuenta? ",
@@ -250,8 +273,3 @@ fun LoginScreen(navController: NavController, loginViewModel: LoginViewModel = v
         Spacer(modifier = Modifier.height(16.dp))
     }
 }
-
-
-
-
-
