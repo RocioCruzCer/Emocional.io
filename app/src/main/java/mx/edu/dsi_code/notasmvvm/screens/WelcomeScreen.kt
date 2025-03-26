@@ -125,23 +125,6 @@ fun WelcomeScreen(navController: NavController) {
                     fontSize = 16.sp
                 )
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Botón de texto "Continuar sin registrarse" (opcional)
-            TextButton(onClick = { /* Acción adicional */ }) {
-                Text(
-                    "Continuar sin registrarse",
-                    color = Color(0xFF0567B2),
-                    fontFamily = montserratFont,
-                    fontWeight = FontWeight.Medium,
-                    fontSize = 14.sp,
-                    modifier = Modifier.clickable {
-                        navController.navigate("start_screen")
-                    }
-                )
-            }
-
             Spacer(modifier = Modifier.height(32.dp))
         }
     }

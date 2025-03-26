@@ -34,3 +34,4 @@ class UserPreferences(private val context: Context) {
         }
     }
 }
+

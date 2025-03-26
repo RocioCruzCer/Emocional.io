@@ -33,10 +33,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.getValue
 import android.util.Log
 import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavController
 import mx.edu.dsi_code.notasmvvm.api.RetrofitClient
 import mx.edu.dsi_code.notasmvvm.model.EmotionFrequencyResponse
 import mx.edu.dsi_code.notasmvvm.R
+import mx.edu.dsi_code.notasmvvm.data.UserPreferences
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import mx.edu.dsi_code.notasmvvm.model.Frecuencia
@@ -51,13 +53,30 @@ fun HomeScreen(navController: NavController) {
     var error by remember { mutableStateOf<String?>(null) }
     var loading by remember { mutableStateOf(false) }
 
-    val userId = 43 // Cambia esto por el ID del usuario actual
+    // Obtener el ID del usuario desde UserPreferences
+    val context = LocalContext.current
+    val userPreferences = UserPreferences(context)
+    var userId by remember { mutableStateOf<String?>(null) }
+
+    // Cargar el ID del usuario al inicio
+    LaunchedEffect(true) {
+        userPreferences.userIdFlow.collect { id ->
+            userId = id
+        }
+    }
+
+    // Si no hay usuario, mostramos un mensaje o redirigimos
+    if (userId == null) {
+        // Opcionalmente, podrías redirigir a una pantalla de login si el ID es null
+        Text("Usuario no encontrado, redirigiendo al login...")
+        return
+    }
 
     // Llamamos a la API para obtener las frecuencias de las emociones
     LaunchedEffect(userId) {
         loading = true
         try {
-            val response = RetrofitClient.apiService.getFrecuenciasEmocionales(userId)
+            val response = RetrofitClient.apiService.getFrecuenciasEmocionales(userId?.toInt() ?: 0) // Convertimos el ID a Int
             if (response.isSuccessful) {
                 val data = response.body()?.Data?.ListaFrecuencias
                 frequencies = data ?: emptyList()

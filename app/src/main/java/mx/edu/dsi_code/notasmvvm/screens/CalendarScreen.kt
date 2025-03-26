@@ -30,9 +30,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.ui.platform.LocalContext
 import mx.edu.dsi_code.notasmvvm.api.RetrofitClient
+import mx.edu.dsi_code.notasmvvm.data.UserPreferences
 import mx.edu.dsi_code.notasmvvm.model.Emotion
 import mx.edu.dsi_code.notasmvvm.model.Nota
 
@@ -50,35 +52,49 @@ fun getDaysInMonth(year: Int, month: Int): Int {
 // Función para obtener el ID del usuario desde SharedPreferences
 fun getUserId(context: Context): Int {
     val sharedPreferences = context.getSharedPreferences("UserPreferences", Context.MODE_PRIVATE)
-    val userId = sharedPreferences.getInt("USER_ID", -1)  // Si no está guardado, devolverá -1
-    Log.d("UserPreferences", "ID Usuario recuperado: $userId")  // Verifica que se haya recuperado correctamente
+    val userId = sharedPreferences.getInt("USER_ID", -1)
+    Log.d("UserPreferences", "ID Usuario recuperado: $userId")
     return userId
 }
 
 @Composable
 fun CalendarScreen(navController: NavController) {
     val context = LocalContext.current  // Obtén el contexto de la actividad
+    val userPreferences = UserPreferences(context)  // Instancia de UserPreferences
+    var userId by remember { mutableStateOf<String?>(null) }
+
+    // Cargar el ID del usuario al inicio
+    LaunchedEffect(true) {
+        userPreferences.userIdFlow.collect { id ->
+            userId = id
+        }
+    }
+
+    // Si no hay usuario, mostramos un mensaje o redirigimos
+    if (userId == null) {
+        Text("Usuario no encontrado, redirigiendo al login...")
+        return
+    }
+
     val today = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
     var currentMonth by remember { mutableStateOf(today.monthNumber) }
     var currentYear by remember { mutableStateOf(today.year) }
     var selectedDate by remember { mutableStateOf(today) }
-
-    // Mapa para almacenar las emociones por fecha
-    val emotions = remember { mutableStateMapOf<LocalDate, Emotion>() }
 
     // Lista para almacenar las notas de la fecha seleccionada
     var notas by remember { mutableStateOf<List<Nota>>(emptyList()) }
     var loading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    // Función para obtener las notas de la API para el usuario con ID 4
+    // Función para obtener las notas de la API para el usuario con ID dinámico
     suspend fun obtenerNotas(fecha: String) {
-        val userId = 4  // ID fijo de usuario = 4
-        Log.d("APIRequest", "ID Usuario: $userId, Fecha: $fecha")  // Log para verificar los parámetros
+        val userIdInt = userId?.toInt() ?: 0  // Asegúrate de que el userId sea un número entero
+        Log.d("APIRequest", "ID Usuario: $userIdInt, Fecha: $fecha")  // Log para verificar los parámetros
 
         loading = true
         try {
-            val response = RetrofitClient.apiService.obtenerNotasPorFecha(userId, fecha)  // Usamos el ID dinámico
+            // Enviar la fecha en formato "YYYY-MM-DD"
+            val response = RetrofitClient.apiService.obtenerNotasPorFecha(userIdInt, fecha)
             Log.d("APIResponse", "Respuesta: ${response.body()}")  // Log para ver la respuesta completa
 
             if (response.isSuccessful) {
@@ -99,15 +115,13 @@ fun CalendarScreen(navController: NavController) {
         loading = false
     }
 
-    // Filtra las fechas con notas para el usuario con ID 4
+    // Filtra las fechas con notas para el usuario con ID dinámico
     val datesWithNotes = remember { mutableStateListOf<LocalDate>() }
     LaunchedEffect(Unit) {
         loading = true
         try {
-            // Obtener todas las fechas con notas para el usuario ID 4
-            val userId = 4
             val currentMonthString = "${currentYear}-${currentMonth.toString().padStart(2, '0')}"
-            val response = RetrofitClient.apiService.obtenerNotasPorFecha(userId, currentMonthString)  // Cambiar este endpoint si es necesario para obtener todas las fechas del mes
+            val response = RetrofitClient.apiService.obtenerNotasPorFecha(userId?.toInt() ?: 0, currentMonthString)  // Cambiar este endpoint si es necesario para obtener todas las fechas del mes
             if (response.isSuccessful) {
                 val data = response.body()?.Data
                 if (!data.isNullOrEmpty()) {
@@ -131,7 +145,7 @@ fun CalendarScreen(navController: NavController) {
     }
 
     // Modificar el comportamiento del calendario al seleccionar una fecha
-    val selectedDateString = "${selectedDate.year}-${selectedDate.monthNumber}-${selectedDate.dayOfMonth}"
+    val selectedDateString = "${selectedDate.year}-${selectedDate.monthNumber.toString().padStart(2, '0')}-${selectedDate.dayOfMonth.toString().padStart(2, '0')}"
     LaunchedEffect(selectedDate) {
         obtenerNotas(selectedDateString)  // Llamamos a la función con el contexto para obtener el idUsuario
     }
@@ -238,9 +252,29 @@ fun CalendarScreen(navController: NavController) {
             Text(errorMessage ?: "No se encontraron notas")
         } else {
             notas.forEach { nota ->
-                Text(text = "Nota: ${nota.texto}", fontSize = 16.sp, color = Color.Gray)
+                Card(
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.padding(vertical = 8.dp),
+                  // elevation = 4.dp,  // Mantener la elevación en dp
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF2F2F2)) // Usando colors en lugar de backgroundColor
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = "Emoción: ${nota.texto}",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF0356A0)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Fecha: ${nota.fecha}",
+                            fontSize = 14.sp,
+                            color = Color.Gray
+                        )
+                    }
+                }
+
             }
         }
     }
 }
-

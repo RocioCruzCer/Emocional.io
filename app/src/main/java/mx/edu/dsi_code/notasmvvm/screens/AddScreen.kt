@@ -57,7 +57,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import mx.edu.dsi_code.notasmvvm.data.UserPreferences
 
 @Composable
 fun AddScreen(navController: NavController) {
@@ -72,8 +74,24 @@ fun AddScreen(navController: NavController) {
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
 
-    // ID de usuario fijo para pruebas (id = 12)
-    val userId = 12
+    // Obtener el ID del usuario desde UserPreferences
+    val context = LocalContext.current
+    val userPreferences = UserPreferences(context)
+    var userId by remember { mutableStateOf<String?>(null) }
+
+    // Cargar el ID del usuario al inicio
+    LaunchedEffect(true) {
+        userPreferences.userIdFlow.collect { id ->
+            userId = id
+        }
+    }
+
+    // Si no hay usuario, mostramos un mensaje o redirigimos
+    if (userId == null) {
+        // Opcionalmente, podrías redirigir a una pantalla de login si el ID es null
+        Text("Usuario no encontrado, redirigiendo al login...")
+        return
+    }
 
     // Emociones disponibles (sin imágenes, solo nombre, color y ID)
     val emotionsList = listOf(
@@ -101,7 +119,7 @@ fun AddScreen(navController: NavController) {
                             texto = noteText,
                             fecha = currentDate,
                             emocion = emocion,
-                            id_usuario = userId,
+                            id_usuario = userId?.toInt() ?: 0,  // Convertir el userId a Int
                             id_emocion = selectedEmotion
                         )
                     )
@@ -175,7 +193,7 @@ fun AddScreen(navController: NavController) {
                 onValueChange = { noteText = it },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(160.dp)
+                    .height(350.dp)
                     .padding(16.dp)
                     .background(Color.White, shape = RoundedCornerShape(12.dp))
                     .border(1.dp, Color(0xFFE0E0E0), shape = RoundedCornerShape(12.dp)),
@@ -183,6 +201,7 @@ fun AddScreen(navController: NavController) {
                 keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = { /* Ocultar teclado si es necesario */ })
             )
+
 
             if (errorMessage.isNotEmpty()) {
                 Text(
@@ -211,6 +230,7 @@ fun AddScreen(navController: NavController) {
         }
     }
 }
+
 
 
 @Composable

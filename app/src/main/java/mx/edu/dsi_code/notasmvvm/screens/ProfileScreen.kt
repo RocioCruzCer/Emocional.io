@@ -9,6 +9,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -23,6 +24,7 @@ import kotlinx.coroutines.withContext
 import mx.edu.dsi_code.notasmvvm.api.RetrofitClient
 import mx.edu.dsi_code.notasmvvm.model.Nota
 import mx.edu.dsi_code.notasmvvm.R
+import mx.edu.dsi_code.notasmvvm.data.UserPreferences
 
 @Composable
 fun ProfileScreen(navController: NavController) {
@@ -36,13 +38,30 @@ fun ProfileScreen(navController: NavController) {
     var showDialog by remember { mutableStateOf(false) }
     var notaToDelete by remember { mutableStateOf<Nota?>(null) }
 
-    val userId = 4 // Cambia esto por el ID del usuario actual
+    // Obtener el ID del usuario desde UserPreferences
+    val context = LocalContext.current
+    val userPreferences = UserPreferences(context)
+    var userId by remember { mutableStateOf<String?>(null) }
+
+    // Cargar el ID del usuario al inicio
+    LaunchedEffect(true) {
+        userPreferences.userIdFlow.collect { id ->
+            userId = id
+        }
+    }
+
+    // Si no hay usuario, mostramos un mensaje o redirigimos
+    if (userId == null) {
+        // Opcionalmente, podrías redirigir a una pantalla de login si el ID es null
+        Text("Usuario no encontrado, redirigiendo al login...")
+        return
+    }
 
     // Lanzamos la llamada a la API cuando el Composable se monta
     LaunchedEffect(userId) {
         loading = true
         try {
-            val response = RetrofitClient.apiService.getNotasPorUsuario(userId)
+            val response = RetrofitClient.apiService.getNotasPorUsuario(userId?.toInt() ?: 0) // Convertimos el userId a Int
             if (response.isSuccessful) {
                 val data = response.body()?.Data
                 notas = data ?: emptyList()
